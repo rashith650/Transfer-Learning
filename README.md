@@ -2,103 +2,135 @@
 ## Aim
 To Implement Transfer Learning for classification using VGG-19 architecture.
 ## Problem Statement and Dataset
-Develop an image classification model using transfer learning with the pre-trained VGG19 model. 
+1. Develop a binary classification model using a pretrained VGG19 to distinguish between defected and non-defected capacitors by modifying the last layer to a single neuron.  
+2. Train the model on a dataset containing images of various defected and non-defected capacitors to improve defect detection accuracy.  
+3. Optimize and evaluate the model to ensure reliable classification for capacitor quality assessment in manufacturing.
 
 ## DESIGN STEPS
 ### STEP 1:
-Import required libraries.Then dataset is loaded and define the training and testing dataset.
+Collect and preprocess the dataset containing images of defected and non-defected capacitors.
 
 ### STEP 2:
-initialize the model,loss function,optimizer. CrossEntropyLoss for multi-class classification and Adam optimizer for efficient training.
+Split the dataset into training, validation, and test sets.
 
 ### STEP 3:
-Train the model with training dataset.
+Load the pretrained VGG19 model with weights from ImageNet.
 
 ### STEP 4:
-Evaluate the model with testing dataset.
+Remove the original fully connected (FC) layers and replace the last layer with a single neuron (1 output) with a Sigmoid activation function for binary classification.
 
 ### STEP 5:
-Make Predictions on New Data.
+Train the model using binary cross-entropy loss function and Adam optimizer.
+
+### STEP 6:
+Evaluate the model with test data loader and intepret the evaluation metrics such as confusion matrix and classification report.
 
 ## PROGRAM
+
 ```python
 # Load Pretrained Model and Modify for Transfer Learning
-# Load a pre-trained VGG19 model
-from torchvision.models import VGG19_Weights
-model = models.vgg19(weights = VGG19_Weights.DEFAULT)
+model = models.vgg19(weights = models.VGG19_Weights.DEFAULT)
+
+for param in model.parameters():
+  param.requires_grad = False
 
 
-
-# Modify the final fully connected layer to match the dataset classes
-in_features = model.classifier[-1].in_features
-model.classifier[-1] = nn.Linear(in_features, len(train_dataset.classes))
+# Modify the final fully connected layer to match one binary classes
+num_features = model.classifier[-1].in_features
+model.classifier[-1] = nn.Linear(num_features,1)
 
 
 # Include the Loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.BCELoss()
+optimizer = optim.Adam(model.parameters(),lr=0.001)
 
 
 # Train the model
-def train_model(model, train_loader,test_loader,num_epochs=10):
+def train_model(model, train_loader, test_loader, epochs=10):
+
     train_losses = []
     val_losses = []
-    model.train()
-    for epoch in range(num_epochs):
-        running_loss = 0.0
+
+    for epoch in range(epochs):
+
+        # -------- TRAIN --------
+        model.train()
+        running_loss = 0
+
         for images, labels in train_loader:
-            images, labels = images.to(device), labels.to(device)
+
+            images = images.to(device)
+            labels = labels.to(device).float().unsqueeze(1)
+
             optimizer.zero_grad()
+
             outputs = model(images)
             loss = criterion(outputs, labels)
+
             loss.backward()
             optimizer.step()
-            running_loss += loss.item()
-        train_losses.append(running_loss / len(train_loader))
 
-        # Compute validation loss
+            running_loss += loss.item()
+
+        train_loss = running_loss / len(train_loader)
+        train_losses.append(train_loss)
+
+        # -------- VALIDATION --------
         model.eval()
-        val_loss = 0.0
+        val_loss = 0
+
         with torch.no_grad():
             for images, labels in test_loader:
-                images, labels = images.to(device), labels.to(device)
+
+                images = images.to(device)
+                labels = labels.to(device).float().unsqueeze(1)
+
                 outputs = model(images)
                 loss = criterion(outputs, labels)
+
                 val_loss += loss.item()
 
-        val_losses.append(val_loss / len(test_loader))
-        model.train()
+        val_loss = val_loss / len(test_loader)
+        val_losses.append(val_loss)
 
-        print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_losses[-1]:.4f}, Validation Loss: {val_losses[-1]:.4f}')
-
-    # Plot training and validation loss
-
-    plt.figure(figsize=(8, 6))
-    plt.plot(range(1, num_epochs + 1), train_losses, label='Train Loss', marker='o')
-    plt.plot(range(1, num_epochs + 1), val_losses, label='Validation Loss', marker='s')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
+        print(f"Epoch {epoch+1}/{epochs} | "
+              f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+    print("Name:MOHAMED RASHITH S ")
+    print("Register Number: 212223243003     ")
+    # Plot Loss
+    plt.plot(train_losses,label="Train Loss")
+    plt.plot(val_losses,label="Validation Loss")
     plt.legend()
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training vs Validation Loss")
     plt.show()
-
 
 ```
 
 ## OUTPUT
 ### Training Loss, Validation Loss Vs Iteration Plot
-![image](https://github.com/user-attachments/assets/4148312f-b743-44ff-9772-7fd5ca11668b)
 
-### Confusion Matrix
-![Screenshot 2025-03-23 225807](https://github.com/user-attachments/assets/61db2f24-c58b-4bab-a30b-43e730816bf9)
+<img width="477" height="578" alt="image" src="https://github.com/user-attachments/assets/d1f9d6c0-cb5e-4f0b-94be-9552db532d55" />
 
 ### Classification Report
-![image](https://github.com/user-attachments/assets/7dda420e-571d-47f0-b860-a8f44b304e68)
+
+<img width="477" height="205" alt="image" src="https://github.com/user-attachments/assets/a5d4948d-fa89-4adf-869b-d0119eab328c" />
+
+
+### Confusion Matrix
+
+
+<img width="486" height="473" alt="image" src="https://github.com/user-attachments/assets/cc3ec9e8-ffa2-4096-ba2a-8fa4fddb103e" />
+
 
 ### New Sample Prediction
+<img width="492" height="385" alt="image" src="https://github.com/user-attachments/assets/b6ed9624-c85a-47d3-85a7-7c6489f80601" />
 
-![image](https://github.com/user-attachments/assets/209889cb-9cbf-4044-85b7-c96d646c7dda)
+<img width="448" height="428" alt="image" src="https://github.com/user-attachments/assets/c7c5c0a1-1ea1-4968-a626-8c2a4b8b43d3" />
+
+
+
 
 ## RESULT
-Thus, the transfer Learning for classification using VGG-19 architecture has succesfully implemented.
-
+The VGG-19 model was successfully trained and optimized to classify defected and non-defected capacitors.
